@@ -58,7 +58,31 @@ autocmd FileType * setlocal formatoptions-=c formatoptions-=r formatoptions-=o
 
 set nopaste 
 
+" Enable syntax highlighting for JSDocs
+let g:javascript_plugin_jsdoc = 1
 
+"Enalbes some additional highlighting for NGDocs. Requires JSDoc plugin to be enabled as well.
+let g:javascript_plugin_ngdoc = 1
 
+" Enables syntax highlighting for Flow
+let g:javascript_plugin_flow = 1
 
+let data_dir = has('nvim') ? stdpath('data') . '/site' : '~/.vim'
+if empty(glob(data_dir . '/autoload/plug.vim'))
+  silent execute '!curl -fLo '.data_dir.'/autoload/plug.vim --create-dirs  https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
+  autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
+endif
 
+call plug#begin()
+Plug 'maxmellon/vim-jsx-pretty'
+call plug#end()
+
+" Enable auto completion as you type
+if !exists("g:ycm_semantic_triggers")
+  let g:ycm_semantic_triggers = {}
+endif
+let g:ycm_semantic_triggers['typescript'] = ['.']
+
+" Associate .handlebars and .hbs(another common extension for Handlebars files) with HTML to enable syntax 
+" highlighting and other editor features.
+au BufNewFile, BufRead *.handlebars set filetype=html
