@@ -1,0 +1,6 @@
+# Ignore everything
+*
+
+# Allow only specific files and folders
+!.vimrc
+!.gitignore
