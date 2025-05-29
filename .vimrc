@@ -68,21 +68,21 @@ call plug#end()
 set termguicolors
 
 " Set colour scheme 
-" colorscheme onedark " gruvbox  tokyonight 
+colorscheme onedark " gruvbox  tokyonight 
 
-" let g: airline_theme = 'tokyonight'
+let g:airline_theme = 'tokyonight'
 
 " Add the proper PEP 8 indentation to python files. This will ensure the following:
 " -> consistent line spaces when you use enter tab
 " -> line length doesn't go beyond 80 characters 
 " -> stores files in a Unix format so that you don't get a bunch of conversion issues when checking into GitHub and/or sharing with others.
 au BufNewFile,BufRead *.py
-  \ set tabstop=4
-  \ set softtabstop=4
-  \ set shiftwidth=4
-  \ set textwidth=79
-  \ set expandtab
-  \ set autoindent
+  \ set tabstop=4 |
+  \ set softtabstop=4 |
+  \ set shiftwidth=4 |
+  \ set textwidth=79 |
+  \ set expandtab |
+  \ set autoindent |
   \ set fileformat=unix
 
 " Enable folding
@@ -96,10 +96,13 @@ set splitbelow
 set splitright
 
 " Include different settings for different filetypes.
-au BufNewFile,BufRead *.js, *.html, *.css
+au BufNewFile,BufRead *.js,*.html,*.css
   \ set tabstop=2 |
   \ set softtabstop=2 |
   \ set shiftwidth=2 
+
+" Define BadWhitespace highlight group
+highligh BadWhiteSpace ctermbg=red guibg=red
 
 " Flagging Unnecessary whitespace
 au BufRead,BufNewFile *.py,*.pyw,*.c,*.h match BadWhitespace /\s\+$/
@@ -107,7 +110,7 @@ au BufRead,BufNewFile *.py,*.pyw,*.c,*.h match BadWhitespace /\s\+$/
 " Make sure that VIM knows that you're working with UTF-8 encoding
 set encoding=utf-8
 
-set smartcase " Override ignorecase if search conains capitials
+set smartcase " Override ignorecase if search contains capitials
 set scrolloff=3 " Keep 3 lines visible above/below cursor
 set wildmenu  " Enhanced command completion
 set laststatus=2 " Always show status line
