@@ -61,14 +61,14 @@ Plug 'dense-analysis/ale'
 Plug 'vim-airline/vim-airline'
 Plug 'vim-airline/vim-airline-themes'
 Plug 'morhetz/gruvbox'
-Plug 'folke/tokyonight.nvim', { 'branch': 'main'}
+Plug 'ghifarit53/tokyonight-vim'
 Plug 'joshdick/onedark.vim'
 call plug#end()
 
 set termguicolors
 
 " Set colour scheme 
-" colorscheme tokyonight "onedark,gruvbox  
+" colorscheme onedark " gruvbox  tokyonight 
 
 " let g: airline_theme = 'tokyonight'
 
@@ -90,19 +90,24 @@ set foldmethod=indent
 set foldlevel=99
 
 " Enable folding with the spacebar
-nnoremap za
+nnoremap <silent> <space>  za
 
 set splitbelow
 set splitright
 
 " Include different settings for different filetypes.
 au BufNewFile,BufRead *.js, *.html, *.css
-  \ set tabstop=2
-  \ set softtabstop=2
-  \ set shiftwidth=2
+  \ set tabstop=2 |
+  \ set softtabstop=2 |
+  \ set shiftwidth=2 
 
 " Flagging Unnecessary whitespace
 au BufRead,BufNewFile *.py,*.pyw,*.c,*.h match BadWhitespace /\s\+$/
 
 " Make sure that VIM knows that you're working with UTF-8 encoding
 set encoding=utf-8
+
+set smartcase " Override ignorecase if search conains capitials
+set scrolloff=3 " Keep 3 lines visible above/below cursor
+set wildmenu  " Enhanced command completion
+set laststatus=2 " Always show status line
