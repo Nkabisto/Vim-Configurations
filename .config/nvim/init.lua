@@ -91,7 +91,13 @@ require("lazy").setup({
     lspconfig.cssls.setup({ capabilities = capabilities })
   end },
 
-  { 'windwp/nvim-autopairs', config = function() require('nvim-autopairs').setup({}) end },
+  --{ 'windwp/nvim-autopairs', config = function() require('nvim-autopairs').setup({}) end },
+{ 'windwp/nvim-autopairs', config = function()
+  local autopairs = require('nvim-autopairs')
+  autopairs.setup({})
+  autopairs.remove_rule("'")
+  autopairs.remove_rule('"')
+end },
 
   { 'nvim-telescope/telescope.nvim', dependencies = {'nvim-lua/plenary.nvim'}, config = function()
     local builtin = require('telescope.builtin')
@@ -205,3 +211,4 @@ vim.api.nvim_create_autocmd('LspAttach', {
     vim.keymap.set('n', 'gr', vim.lsp.buf.references, opts)
   end,
 })
+
