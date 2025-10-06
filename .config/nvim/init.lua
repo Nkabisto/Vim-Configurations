@@ -1,4 +1,12 @@
 -- init.lua - Optimized and Clean Neovim Configuration
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+if not vim.loop.fs_stat(lazypath) then
+	vim.fn.system({
+		"git", "clone", "--filter=blob:none",
+		"https://github.com/folke/lazy.nvim", lazypath
+	})
+end
+vim.opt.rtp:prepend(lazypath)
 
 -- Basic Settings
 vim.opt.compatible = false
@@ -50,6 +58,9 @@ require("lazy").setup({
       python = {'autopep8', 'yapf'},
     }
     vim.g.ale_fix_on_save = 1
+    --Set specific line length for Python formatters
+    vim.g.ale_python_autopep8_options = '--max-line-length=88'
+    vim.g.ale_python_yapf_options = '--style={based_on_style: pep8, column_limit: 88}'
   end },
 
   { 'vim-airline/vim-airline', dependencies = {'vim-airline/vim-airline-themes'}, config = function()
@@ -161,7 +172,11 @@ vim.api.nvim_create_autocmd({"BufNewFile", "BufRead"}, {
     vim.opt_local.tabstop = 4
     vim.opt_local.softtabstop = 4
     vim.opt_local.shiftwidth = 4
-    vim.opt_local.textwidth = 79
+    --Remove hard wrapping
+    --vim.opt_local.textwidth = 79
+    --Enable soft visual wrapping only
+    vim.opt_local.wrap = true
+    vim.opt_local.linebreak = true
     vim.opt_local.expandtab = true
     vim.opt_local.autoindent = true
     vim.opt_local.fileformat = "unix"
@@ -185,6 +200,13 @@ vim.api.nvim_create_autocmd({"BufRead", "BufNewFile"}, {
     vim.cmd [[ match BadWhitespace /\s\+$/ ]]
   end,
 })
+--Clipboard settings
+--Set clipboard to use system clipboard
+vim.opt.clipboard="unamedplus"
+
+--Additional clipboard Settings
+vim.opt.clipboard:append("unamed") --for compatibility
+
 
 -- Keymaps
 vim.g.mapleader = ' '
@@ -196,6 +218,10 @@ vim.keymap.set('n', '<C-L>', '<C-W><C-L>')
 vim.keymap.set('n', '<C-H>', '<C-W><C-H>')
 vim.keymap.set('n', '<F2>', ':set invpaste paste?<CR>')
 vim.keymap.set('n', '<space>', 'za')
+--Key mappings for easier clipboard access:
+vim.keymap.set('v', '<leader>y', '"+y', { desc = "Copy to system clipboard"})
+vim.keymap.set('n', '<leader>p', '"+p', { desc = "Paste from system clipboard"})
+vim.keymap.set('n', '<leader>P', '"+p', { desc = "Paste from system clipboard"})
 
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('UserLspConfig', {}),
@@ -211,4 +237,3 @@ vim.api.nvim_create_autocmd('LspAttach', {
     vim.keymap.set('n', 'gr', vim.lsp.buf.references, opts)
   end,
 })
-
