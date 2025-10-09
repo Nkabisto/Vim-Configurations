@@ -202,10 +202,10 @@ vim.api.nvim_create_autocmd({"BufRead", "BufNewFile"}, {
 })
 --Clipboard settings
 --Set clipboard to use system clipboard
-vim.opt.clipboard="unamedplus"
+vim.opt.clipboard="unnamedplus"
 
 --Additional clipboard Settings
-vim.opt.clipboard:append("unamed") --for compatibility
+vim.opt.clipboard:append("unnamed") --for compatibility
 
 
 -- Keymaps
