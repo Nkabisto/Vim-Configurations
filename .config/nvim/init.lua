@@ -1,14 +1,23 @@
--- init.lua - Optimized and Clean Neovim Configuration
+-- init.lua - Optimized Neovim Configuration
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
-	vim.fn.system({
-		"git", "clone", "--filter=blob:none",
-		"https://github.com/folke/lazy.nvim", lazypath
-	})
+  vim.fn.system({
+    "git", "clone", "--filter=blob:none",
+    "https://github.com/folke/lazy.nvim", lazypath,
+    "--branch=stable"
+  })
 end
 vim.opt.rtp:prepend(lazypath)
 
--- Basic Settings
+-- Disable unused built-ins for faster startup
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
+vim.g.loaded_tutor = 1
+vim.g.loaded_2html_plugin = 1
+vim.g.loaded_matchit = 1
+vim.g.loaded_matchparen = 1
+
+-- Basic Settings (moved before plugins for faster UI)
 vim.opt.compatible = false
 vim.opt.number = true
 vim.opt.cursorline = true
@@ -31,127 +40,253 @@ vim.opt.foldlevel = 99
 vim.opt.autoindent = true
 vim.opt.expandtab = true
 vim.opt.encoding = 'utf-8'
-
-vim.opt.paste = false
+vim.opt.clipboard = "unnamedplus"
 
 vim.g.python_highlight_all = 1
 
-vim.cmd('syntax on')
-vim.cmd('filetype plugin indent on')
+-- Keymaps (set early so they're available)
+vim.g.mapleader = ' '
+vim.keymap.set('n', '<leader>w', ':w<CR>')
+vim.keymap.set('n', '<leader>q', ':q<CR>')
+vim.keymap.set('n', '<C-J>', '<C-W><C-J>')
+vim.keymap.set('n', '<C-K>', '<C-W><C-K>')
+vim.keymap.set('n', '<C-L>', '<C-W><C-L>')
+vim.keymap.set('n', '<C-H>', '<C-W><C-H>')
+vim.keymap.set('n', '<F2>', ':set invpaste paste?<CR>')
+vim.keymap.set('n', '<space>', 'za')
+vim.keymap.set('v', '<leader>y', '"+y', { desc = "Copy to system clipboard"})
+vim.keymap.set('n', '<leader>p', '"+p', { desc = "Paste from system clipboard"})
 
--- Plugin Manager Setup
-local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.loop.fs_stat(lazypath) then
-  vim.fn.system({"git", "clone", "--filter=blob:none", "https://github.com/folke/lazy.nvim.git", "--branch=stable", lazypath})
-end
-vim.opt.rtp:prepend(lazypath)
-
+-- Plugin Configuration with Lazy Loading
 require("lazy").setup({
-  'tpope/vim-sensible',
+  -- Core UI (load immediately)
+  { 
+    'folke/tokyonight.nvim', 
+    priority = 1000, 
+    config = function()
+      vim.cmd('colorscheme tokyonight-night')
+    end 
+  },
 
-  { 'dense-analysis/ale', config = function()
-    vim.g.ale_fixers = {
-      ['*'] = {'remove_trailing_lines', 'trim_whitespace'},
-      javascript = {'eslint', 'prettier'},
-      css = {'prettier'},
-      html = {'prettier'},
-      python = {'autopep8', 'yapf'},
+  { 
+    'vim-airline/vim-airline', 
+    dependencies = {
+      {'vim-airline/vim-airline-themes', config = function()
+        vim.g.airline_theme = 'dark'
+      end}
+    },
+    event = "UIEnter" -- Load after UI is ready
+  },
+
+  -- File tree (load on command)
+  { 
+    'nvim-tree/nvim-tree.lua', 
+    dependencies = {'nvim-tree/nvim-web-devicons'},
+    cmd = { "NvimTreeToggle", "NvimTreeFindFile", "NvimTreeOpen" },
+    keys = {
+      { "<C-n>", "<cmd>NvimTreeToggle<CR>", desc = "Toggle File Tree" },
+      { "<C-f>", "<cmd>NvimTreeFindFile<CR>", desc = "Find File in Tree" },
+    },
+    config = function()
+      require('nvim-tree').setup({ view = { width = 30 } })
+    end
+  },
+
+  -- LSP and completion (load on relevant events)
+  {
+    'neovim/nvim-lspconfig',
+    event = "BufReadPre",
+    dependencies = {
+      'hrsh7th/nvim-cmp',
+      'hrsh7th/cmp-nvim-lsp',
+      'hrsh7th/cmp-buffer',
+      'hrsh7th/cmp-path',
+      'L3MON4D3/LuaSnip',
+      'saadparwaiz1/cmp_luasnip',
+    },
+    config = function()
+      local lspconfig = require('lspconfig')
+      local cmp = require('cmp')
+      
+      cmp.setup({
+        snippet = { 
+          expand = function(args) 
+            require('luasnip').lsp_expand(args.body) 
+          end 
+        },
+        mapping = cmp.mapping.preset.insert({
+          ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+          ['<C-f>'] = cmp.mapping.scroll_docs(4),
+          ['<C-Space>'] = cmp.mapping.complete(),
+          ['<C-e>'] = cmp.mapping.abort(),
+          ['<CR>'] = cmp.mapping.confirm({ select = true }),
+          ['<Tab>'] = cmp.mapping.select_next_item(),
+          ['<S-Tab>'] = cmp.mapping.select_prev_item(),
+        }),
+        sources = cmp.config.sources(
+          { { name = 'nvim_lsp' }, { name = 'luasnip' } }, 
+          { { name = 'buffer' }, { name = 'path' } }
+        )
+      })
+
+      local capabilities = require('cmp_nvim_lsp').default_capabilities()
+      
+      -- Set up LSP servers only when files are opened
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = { 'python', 'javascript', 'typescript', 'html', 'css' },
+        callback = function(ev)
+          local ft = ev.match
+          if ft == 'python' then
+            lspconfig.pyright.setup({ capabilities = capabilities })
+          elseif ft == 'javascript' or ft == 'typescript' then
+            lspconfig.tsserver.setup({ capabilities = capabilities })
+          elseif ft == 'html' then
+            lspconfig.html.setup({ capabilities = capabilities })
+          elseif ft == 'css' then
+            lspconfig.cssls.setup({ capabilities = capabilities })
+          end
+        end
+      })
+    end
+  },
+
+  -- Git (load on relevant events)
+  { 
+    'tpope/vim-fugitive', 
+    cmd = { "Git", "Gstatus", "Gcommit" },
+    keys = {
+      { "<leader>gs", "<cmd>Git<CR>", desc = "Git status" }
     }
-    vim.g.ale_fix_on_save = 1
-    --Set specific line length for Python formatters
-    vim.g.ale_python_autopep8_options = '--max-line-length=88'
-    vim.g.ale_python_yapf_options = '--style={based_on_style: pep8, column_limit: 88}'
-  end },
+  },
 
-  { 'vim-airline/vim-airline', dependencies = {'vim-airline/vim-airline-themes'}, config = function()
-    vim.g.airline_theme = 'dark'
-  end },
+  { 
+    'lewis6991/gitsigns.nvim', 
+    event = "BufReadPre",
+    config = function() 
+      require('gitsigns').setup() 
+    end 
+  },
 
-  { 'folke/tokyonight.nvim', priority = 1000, config = function()
-    vim.cmd('colorscheme tokyonight-night')
-  end },
+  -- Tools (lazy loaded)
+  { 
+    'nvim-telescope/telescope.nvim', 
+    dependencies = {'nvim-lua/plenary.nvim'},
+    cmd = "Telescope",
+    keys = {
+      { '<C-p>', '<cmd>Telescope find_files<CR>', desc = "Find files" },
+      { '<C-g>', '<cmd>Telescope live_grep<CR>', desc = "Live grep" },
+      { '<leader>b', '<cmd>Telescope buffers<CR>', desc = "Buffers" },
+    },
+    config = function() end -- config can be empty if just setting keymaps
+  },
 
-  { 'neovim/nvim-lspconfig', dependencies = {
-    'hrsh7th/nvim-cmp',
-    'hrsh7th/cmp-nvim-lsp',
-    'hrsh7th/cmp-buffer',
-    'hrsh7th/cmp-path',
-    'L3MON4D3/LuaSnip',
-    'saadparwaiz1/cmp_luasnip',
-  }, config = function()
-    local lspconfig = require('lspconfig')
-    local cmp = require('cmp')
-    cmp.setup({
-      snippet = { expand = function(args) require('luasnip').lsp_expand(args.body) end },
-      mapping = cmp.mapping.preset.insert({
-        ['<C-b>'] = cmp.mapping.scroll_docs(-4),
-        ['<C-f>'] = cmp.mapping.scroll_docs(4),
-        ['<C-Space>'] = cmp.mapping.complete(),
-        ['<C-e>'] = cmp.mapping.abort(),
-        ['<CR>'] = cmp.mapping.confirm({ select = true }),
-        ['<Tab>'] = cmp.mapping.select_next_item(),
-        ['<S-Tab>'] = cmp.mapping.select_prev_item(),
-      }),
-      sources = cmp.config.sources({ { name = 'nvim_lsp' }, { name = 'luasnip' } }, { { name = 'buffer' }, { name = 'path' } })
-    })
-    local capabilities = require('cmp_nvim_lsp').default_capabilities()
-    lspconfig.pyright.setup({ capabilities = capabilities })
---    lspconfig.tsserver = nil -- Optional, to avoid deprecated warning
-    lspconfig.ts_ls.setup({ capabilities = capabilities })
-    lspconfig.html.setup({ capabilities = capabilities })
-    lspconfig.cssls.setup({ capabilities = capabilities })
-  end },
+  { 
+    'windwp/nvim-autopairs', 
+    event = "InsertEnter",
+    config = function()
+      local autopairs = require('nvim-autopairs')
+      autopairs.setup({})
+      autopairs.remove_rule("'")
+      autopairs.remove_rule('"')
+    end 
+  },
 
-  --{ 'windwp/nvim-autopairs', config = function() require('nvim-autopairs').setup({}) end },
-{ 'windwp/nvim-autopairs', config = function()
-  local autopairs = require('nvim-autopairs')
-  autopairs.setup({})
-  autopairs.remove_rule("'")
-  autopairs.remove_rule('"')
-end },
+  { 
+    'dense-analysis/ale',
+    ft = { "python", "javascript", "typescript", "html", "css" },
+    config = function()
+      vim.g.ale_fixers = {
+        ['*'] = {'remove_trailing_lines', 'trim_whitespace'},
+        javascript = {'eslint', 'prettier'},
+        css = {'prettier'},
+        html = {'prettier'},
+        python = {'autopep8', 'yapf'},
+      }
+      vim.g.ale_fix_on_save = 1
+      vim.g.ale_python_autopep8_options = '--max-line-length=88'
+      vim.g.ale_python_yapf_options = '--style={based_on_style: pep8, column_limit: 88}'
+    end 
+  },
 
-  { 'nvim-telescope/telescope.nvim', dependencies = {'nvim-lua/plenary.nvim'}, config = function()
-    local builtin = require('telescope.builtin')
-    vim.keymap.set('n', '<C-p>', builtin.find_files, {})
-    vim.keymap.set('n', '<C-g>', builtin.live_grep, {})
-    vim.keymap.set('n', '<leader>b', builtin.buffers, {})
-  end },
+  { 
+    'mattn/emmet-vim', 
+    ft = { "html", "css", "javascript", "typescript", "javascriptreact", "typescriptreact" },
+    config = function()
+      vim.g.user_emmet_mode = 'n'
+      vim.g.user_emmet_leader_key = ','
+    end 
+  },
 
-  { 'nvim-tree/nvim-tree.lua', dependencies = {'nvim-tree/nvim-web-devicons'}, config = function()
-    require('nvim-tree').setup({ view = { width = 30 } })
-    vim.keymap.set('n', '<C-n>', ':NvimTreeToggle<CR>', {})
-    vim.keymap.set('n', '<C-f>', ':NvimTreeFindFile<CR>', {})
-  end },
+  { 
+    'nvim-treesitter/nvim-treesitter', 
+    build = ':TSUpdate',
+    event = { "BufReadPost", "BufNewFile" },
+    config = function()
+      require('nvim-treesitter.configs').setup({
+        ensure_installed = {"python", "javascript", "html", "css", "lua", "vim"},
+        highlight = { enable = true },
+      })
+    end 
+  },
 
-  'tpope/vim-fugitive',
+  -- Language-specific (load only for relevant filetypes)
+  { 
+    'tmhedberg/SimpylFold', 
+    ft = "python" 
+  },
 
-  { 'lewis6991/gitsigns.nvim', config = function() require('gitsigns').setup() end },
+  { 
+    'Vimjas/vim-python-pep8-indent', 
+    ft = "python" 
+  },
 
-  { 'mattn/emmet-vim', config = function()
-    vim.g.user_emmet_mode = 'n'
-    vim.g.user_emmet_leader_key = ','
-  end },
+  -- Text objects and editing (load on first use)
+  { 
+    'tpope/vim-commentary', 
+    keys = { "gc", "gcc" } 
+  },
 
-  { 'nvim-treesitter/nvim-treesitter', build = ':TSUpdate', config = function()
-    require('nvim-treesitter.configs').setup({
-      ensure_installed = {"python", "javascript", "html", "css", "lua", "vim"},
-      highlight = { enable = true },
-    })
-  end },
+  { 
+    'tpope/vim-surround', 
+    keys = { "cs", "ds", "ys" } 
+  },
 
-  'tmhedberg/SimpylFold',
-  'Vimjas/vim-python-pep8-indent',
-  'tpope/vim-commentary',
-  'tpope/vim-surround',
+  { 
+    'lukas-reineke/indent-blankline.nvim', 
+    main = 'ibl', 
+    event = "BufReadPost",
+    config = function()
+      require('ibl').setup({})
+    end 
+  },
 
-  { 'lukas-reineke/indent-blankline.nvim', main= 'ibl', config = function()
-    require('ibl').setup({})
-  end },
+  { 
+    'HiPhish/rainbow-delimiters.nvim',
+    event = "BufReadPost",
+    config = function()
+      -- Optional: add specific configuration if needed
+    end
+  },
 
-  'HiPhish/rainbow-delimiters.nvim',
+  -- Base plugins (load early)
+  'tpope/vim-sensible',
+}, {
+  -- Lazy.nvim options for better performance
+  checker = { enabled = false }, -- Don't check for updates on startup
+  performance = {
+    rtp = {
+      disabled_plugins = {
+        "netrwPlugin",
+        "tutor",
+        "2html_plugin",
+        "matchit",
+        "matchparen",
+      },
+    },
+  },
 })
 
--- Autocommands
+-- Autocommands (moved after plugins)
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "*",
   callback = function()
@@ -172,9 +307,6 @@ vim.api.nvim_create_autocmd({"BufNewFile", "BufRead"}, {
     vim.opt_local.tabstop = 4
     vim.opt_local.softtabstop = 4
     vim.opt_local.shiftwidth = 4
-    --Remove hard wrapping
-    --vim.opt_local.textwidth = 79
-    --Enable soft visual wrapping only
     vim.opt_local.wrap = true
     vim.opt_local.linebreak = true
     vim.opt_local.expandtab = true
@@ -200,29 +332,8 @@ vim.api.nvim_create_autocmd({"BufRead", "BufNewFile"}, {
     vim.cmd [[ match BadWhitespace /\s\+$/ ]]
   end,
 })
---Clipboard settings
---Set clipboard to use system clipboard
-vim.opt.clipboard="unnamedplus"
 
---Additional clipboard Settings
-vim.opt.clipboard:append("unnamed") --for compatibility
-
-
--- Keymaps
-vim.g.mapleader = ' '
-vim.keymap.set('n', '<leader>w', ':w<CR>')
-vim.keymap.set('n', '<leader>q', ':q<CR>')
-vim.keymap.set('n', '<C-J>', '<C-W><C-J>')
-vim.keymap.set('n', '<C-K>', '<C-W><C-K>')
-vim.keymap.set('n', '<C-L>', '<C-W><C-L>')
-vim.keymap.set('n', '<C-H>', '<C-W><C-H>')
-vim.keymap.set('n', '<F2>', ':set invpaste paste?<CR>')
-vim.keymap.set('n', '<space>', 'za')
---Key mappings for easier clipboard access:
-vim.keymap.set('v', '<leader>y', '"+y', { desc = "Copy to system clipboard"})
-vim.keymap.set('n', '<leader>p', '"+p', { desc = "Paste from system clipboard"})
-vim.keymap.set('n', '<leader>P', '"+p', { desc = "Paste from system clipboard"})
-
+-- LSP keymaps (only set up when LSP attaches)
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('UserLspConfig', {}),
   callback = function(ev)
@@ -237,3 +348,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
     vim.keymap.set('n', 'gr', vim.lsp.buf.references, opts)
   end,
 })
+
+-- Syntax and filetype (at the end)
+vim.cmd('syntax on')
+vim.cmd('filetype plugin indent on')
