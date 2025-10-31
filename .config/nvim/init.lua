@@ -58,6 +58,7 @@ vim.keymap.set('v', '<leader>y', '"+y', { desc = "Copy to system clipboard"})
 vim.keymap.set('n', '<leader>p', '"+p', { desc = "Paste from system clipboard"})
 
 -- Plugin Configuration with Lazy Loading
+vim.g.ale_disable_lsp = 1 -- disables ALE's internal LSP client
 require("lazy").setup({
   -- Core UI (load immediately)
   { 
@@ -96,59 +97,31 @@ require("lazy").setup({
   {
     'neovim/nvim-lspconfig',
     event = "BufReadPre",
-    dependencies = {
-      'hrsh7th/nvim-cmp',
-      'hrsh7th/cmp-nvim-lsp',
-      'hrsh7th/cmp-buffer',
-      'hrsh7th/cmp-path',
-      'L3MON4D3/LuaSnip',
-      'saadparwaiz1/cmp_luasnip',
+    dependencies = { 
+      'hrsh7th/nvim-cmp',
+      'hrsh7th/cmp-nvim-lsp',
+      'hrsh7th/cmp-buffer',
+      'hrsh7th/cmp-path',
+      'L3MON4D3/LuaSnip',
+      'saadparwaiz1/cmp_luasnip',  
     },
-    config = function()
-      local lspconfig = require('lspconfig')
-      local cmp = require('cmp')
-      
-      cmp.setup({
-        snippet = { 
-          expand = function(args) 
-            require('luasnip').lsp_expand(args.body) 
-          end 
-        },
-        mapping = cmp.mapping.preset.insert({
-          ['<C-b>'] = cmp.mapping.scroll_docs(-4),
-          ['<C-f>'] = cmp.mapping.scroll_docs(4),
-          ['<C-Space>'] = cmp.mapping.complete(),
-          ['<C-e>'] = cmp.mapping.abort(),
-          ['<CR>'] = cmp.mapping.confirm({ select = true }),
-          ['<Tab>'] = cmp.mapping.select_next_item(),
-          ['<S-Tab>'] = cmp.mapping.select_prev_item(),
-        }),
-        sources = cmp.config.sources(
-          { { name = 'nvim_lsp' }, { name = 'luasnip' } }, 
-          { { name = 'buffer' }, { name = 'path' } }
-        )
-      })
-
-      local capabilities = require('cmp_nvim_lsp').default_capabilities()
-      
-      -- Set up LSP servers only when files are opened
-      vim.api.nvim_create_autocmd('FileType', {
-        pattern = { 'python', 'javascript', 'typescript', 'html', 'css' },
-        callback = function(ev)
-          local ft = ev.match
-          if ft == 'python' then
-            lspconfig.pyright.setup({ capabilities = capabilities })
-          elseif ft == 'javascript' or ft == 'typescript' then
-            lspconfig.tsserver.setup({ capabilities = capabilities })
-          elseif ft == 'html' then
-            lspconfig.html.setup({ capabilities = capabilities })
-          elseif ft == 'css' then
-            lspconfig.cssls.setup({ capabilities = capabilities })
-          end
-        end
-      })
+    opts = {
+      servers = {
+        pyright = {},
+        ts_ls = {},
+        html = {},
+        cssls = {},
+      },
+    },
+  config = function(_, opts)
+    local capabilities = require('cmp_nvim_lsp').default_capabilities()
+    local lspconfig = require('lspconfig')
+    for server, config in pairs(opts.servers) do
+      config.capabilities = capabilities
+      lspconfig[server].setup(config)
     end
-  },
+  end
+},
 
   -- Git (load on relevant events)
   { 
