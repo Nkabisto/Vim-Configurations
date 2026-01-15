@@ -110,16 +110,17 @@ require("lazy").setup({
     opts = {
       servers = {
         pyright = {},
-        tsserver = {},
+        ts_ls = {},
         html = {},
         cssls = {},
       },
     },
     config = function(_, opts)
       local capabilities = require('cmp_nvim_lsp').default_capabilities()
-      for server, config in pairs(opts.servers) do
-        config.capabilities = capabilities
-        vim.lsp.config[server].setup(config)
+      local lspconfig = require("lspconfig")
+      for server, server_opts in pairs(opts.servers) do
+        server_opts.capabilities = capabilities
+        lspconfig[server].setup(server_opts)
       end
     end
   },
